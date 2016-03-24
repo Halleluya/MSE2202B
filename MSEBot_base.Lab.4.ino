@@ -1,6 +1,3 @@
-//ae4awefef
-//FUCK YOU
-
 #include <Servo.h>
 #include <EEPROM.h>
 #include <uSTimer2.h>
@@ -12,6 +9,7 @@ Servo servo_RightMotor;
 Servo servo_LeftMotor;
 Servo servo_ArmMotor;    
 Servo servo_GripMotor;
+Servo servo_WristMotor;
 
 I2CEncoder encoder_RightMotor;
 I2CEncoder encoder_LeftMotor;
@@ -24,7 +22,6 @@ I2CEncoder encoder_LeftMotor;
 //#define DEBUG_ULTRASONIC
 //#define DEBUG_MOTOR_CALIBRATION
 
-boolean bt_Motors_Enabled = true;
 
 //PIN VARIABLES
 const int pin_Ultrasonic_Ping = 2;   //input plug
@@ -33,12 +30,17 @@ const int pin_Charlieplex_LED1 = 4;
 const int pin_Charlieplex_LED2 = 5;
 const int pin_Charlieplex_LED3 = 6;
 const int pin_Charlieplex_LED4 = 7;
+const int pin_HallEffect_rightCl = 4;
+const int pin_HallEffect_leftCl = 5;
+const int pin_HallEffect_rightCh = 6;
+const int pin_HallEffect_middleCh = 7;
+const int pin_HallEffect_leftCh = 8;
 const int pin_Mode_Button = 7;
-const int pin_Right_Motor = 8;
-const int pin_Left_Motor = 9;
-const int pin_Arm_Motor = 10;
-const int pin_Grip_Motor = 11;
-const int pin_Motor_Enable_Switch = 12;
+const int pin_Right_Motor = 9;
+const int pin_Left_Motor = 10;
+const int pin_Arm_Motor = 11;
+const int pin_Wrist_Motor = 12;
+const int pin_Grip_Motor = 13;
 const int pin_Right_Line_Tracker = A0;
 const int pin_Middle_Line_Tracker = A1;
 const int pin_Left_Line_Tracker = A2;
@@ -55,6 +57,19 @@ const int CP_Left_Line_Tracker_LED = 12;
 //constants
 
 // EEPROM addresses
+const int Left_Line_Tracker_Dark_Address_L = 0;
+const int Left_Line_Tracker_Dark_Address_H = 1;
+const int Left_Line_Tracker_Light_Address_L = 2;
+const int Left_Line_Tracker_Light_Address_H = 3;
+const int Middle_Line_Tracker_Dark_Address_L = 4;
+const int Middle_Line_Tracker_Dark_Address_H = 5;
+const int Middle_Line_Tracker_Light_Address_L = 6;
+const int Middle_Line_Tracker_Light_Address_H = 7;
+const int Right_Line_Tracker_Dark_Address_L = 8;
+const int Right_Line_Tracker_Dark_Address_H = 9;
+const int Right_Line_Tracker_Light_Address_L = 10;
+const int Right_Line_Tracker_Light_Address_H = 11;
+
 const int Left_Motor_Offset_Address_L = 12;
 const int Left_Motor_Offset_Address_H = 13;
 const int Right_Motor_Offset_Address_L = 14;
@@ -78,20 +93,14 @@ unsigned long Echo_Time;
 unsigned int Left_Line_Tracker_Data;
 unsigned int Middle_Line_Tracker_Data;
 unsigned int Right_Line_Tracker_Data;
-unsigned int Motor_Speed = 1700;
-unsigned int Left_Motor_Speed;
-unsigned int Right_Motor_Speed;
 long Left_Motor_Position;
 long Right_Motor_Position;
 
-unsigned long 3_Second_timer = 0;
 unsigned long Display_Time;
 unsigned long Calibration_Time;
 unsigned long Left_Motor_Offset;
 unsigned long Right_Motor_Offset;
 
-unsigned int Cal_Count;
-unsigned int Cal_Cycle;
 unsigned int Left_Line_Tracker_Dark;
 unsigned int Left_Line_Tracker_Light;
 unsigned int Middle_Line_Tracker_Dark;
@@ -102,7 +111,7 @@ unsigned int Line_Tracker_Tolerance;
 
 unsigned int  Robot_State_Index = 0;
 //0123456789ABCDEF
-unsigned int  ui_Mode_Indicator[6] = {
+unsigned int  Mode_Indicator[6] = {
   0x00,    //B0000000000000000,  //Stop
   0x00FF,  //B0000000011111111,  //Run
   0x0F0F,  //B0000111100001111,  //Calibrate line tracker light level
@@ -126,6 +135,8 @@ void setup() {
   Wire.begin();        // Wire library required for I2CEncoder library
   Serial.begin(9600);
 
+  CharliePlexM::setBtn(pin_Charlieplex_LED1, pin_Charlieplex_LED2, pin_Charlieplex_LED3, pin_Charlieplex_LED4, pin_Mode_Button);
+
   // set up ultrasonic
   pinMode(pin_Ultrasonic_Ping, OUTPUT);
   pinMode(pin_Ultrasonic_Data, INPUT);
@@ -141,9 +152,9 @@ void setup() {
   servo_ArmMotor.attach(pin_Arm_Motor);
   pinMode(pin_Grip_Motor, OUTPUT);
   servo_GripMotor.attach(pin_Grip_Motor);
+  pinMode(pin_Wrist_Motor, OUTPUT);
+  servo_WristMotor.attach(pin_Wrist_Motor);
 
-  // set up motor enable switch
-  pinMode(pin_Motor_Enable_Switch, INPUT);
 
   // set up encoders. Must be initialized in order that they are chained together, 
   // starting with the encoder directly connected to the Arduino. See I2CEncoder docs
@@ -163,19 +174,19 @@ void setup() {
   b_LowByte = EEPROM.read(Left_Line_Tracker_Dark_Address_L);
   b_HighByte = EEPROM.read(Left_Line_Tracker_Dark_Address_H);
   Left_Line_Tracker_Dark = word(b_HighByte, b_LowByte);
-  b_LowByte = EEPROM.read(ci_Left_Line_Tracker_Light_Address_L);
+  b_LowByte = EEPROM.read(Left_Line_Tracker_Light_Address_L);
   b_HighByte = EEPROM.read(Left_Line_Tracker_Dark_Address_H);
   Left_Line_Tracker_Light = word(b_HighByte, b_LowByte);
   b_LowByte = EEPROM.read(Middle_Line_Tracker_Dark_Address_L);
   b_HighByte = EEPROM.read(Left_Line_Tracker_Dark_Address_H);
   Middle_Line_Tracker_Dark = word(b_HighByte, b_LowByte); 
-  b_LowByte = EEPROM.read(ci_Middle_Line_Tracker_Light_Address_L);
+  b_LowByte = EEPROM.read(Middle_Line_Tracker_Light_Address_L);
   b_HighByte = EEPROM.read(Left_Line_Tracker_Dark_Address_H);
   Middle_Line_Tracker_Light = word(b_HighByte, b_LowByte);
   b_LowByte = EEPROM.read(Right_Line_Tracker_Dark_Address_L);
   b_HighByte = EEPROM.read(Left_Line_Tracker_Dark_Address_H);
   Right_Line_Tracker_Dark = word(b_HighByte, b_LowByte);
-  b_LowByte = EEPROM.read(ci_Right_Line_Tracker_Light_Address_L);
+  b_LowByte = EEPROM.read(Right_Line_Tracker_Light_Address_L);
   b_HighByte = EEPROM.read(Left_Line_Tracker_Dark_Address_H);
   Right_Line_Tracker_Light = word(b_HighByte, b_LowByte);
   b_LowByte = EEPROM.read(Left_Motor_Offset_Address_L);
@@ -188,33 +199,19 @@ void setup() {
 
 void loop()
 {
-  if((millis() - 3_Second_timer) > 3000)
-  {
-    bt_3_S_Time_Up = true;
-  }
-
+ 
   // button-based mode selection
   if(CharliePlexM::ui_Btn)
   {
-    if(bt_Do_Once == false)
-    {
-      bt_Do_Once = true;
-      Robot_State_Index++;
-      Robot_State_Index = Robot_State_Index & 7;
-      3_Second_timer = millis();
-      bt_3_S_Time_Up = false;
-      bt_Cal_Initialized = false;
-      Cal_Cycle = 0;
-    }
-  }
-  else
-  {
-    bt_Do_Once = LOW;
+      if(bt_Do_Once == false)
+      {
+          bt_Do_Once = true;
+          Robot_State_Index++;
+          Robot_State_Index = Robot_State_Index & 7;
+      }
   }
 
-  // check if drive motors should be powered
-  bt_Motors_Enabled = digitalRead(pin_Motor_Enable_Switch);
-
+  
   // Button Modes 
   // 0 = default after power up/reset
   // 1 = Press mode button once to enter. Run robot.
@@ -222,35 +219,40 @@ void loop()
   // 3 = Press mode button three times to enter. Calibrate line tracker dark level.
 
 
-
-
-
-
-
-  
   switch(Robot_State_Index)
   {
     case 0:    //Robot stopped
     {
       readLineTrackers();
       UltrasonicPing();
-      servo_LeftMotor.writeMicroseconds(ci_Left_Motor_Stop); 
-      servo_RightMotor.writeMicroseconds(ci_Right_Motor_Stop); 
-      servo_ArmMotor.write(const_Arm_Servo_Retracted);
-      servo_GripMotor.write(const_Grip_Motor_Closed);
+      servo_LeftMotor.write(1500); 
+      servo_RightMotor.write(1500); 
+      
+       //detach the claw and arm motors
+       servo_GripMotor.detach();
+       servo_WristMotor.detach();
+       servo_ArmMotor.detach();
+
+       //zero the encoder
       encoder_LeftMotor.zero();
       encoder_RightMotor.zero();
-      Mode_Indicator_Index = 0;
+      
       break;
     } 
+
   
-    case 1:    //Robot Run after 3 seconds
+    case 1:  //Robot drive straight
     {
+       //turn off the grip motor
+       servo_GripMotor.detach();
+       servo_WristMotor.detach();
+       servo_ArmMotor.detach();
+      
       //turn the motors on, drive straight until the bumper switch is hit
-      servo_LeftMotor.writeMicroseconds(1700); 
-      servo_RightMotor.writeMicroseconds(1700); 
-      
-      
+      servo_LeftMotor.write(1700); 
+      servo_RightMotor.write(1700); 
+
+      break;
     } 
 
 
@@ -276,128 +278,6 @@ void loop()
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    /*
-    case 2:    //Calibrate line tracker light levels after 3 seconds
-    {
-      if(bt_3_S_Time_Up)
-      {
-        if(!bt_Cal_Initialized)
-        {
-          bt_Cal_Initialized = true;
-          Left_Line_Tracker_Light = 0;
-          Middle_Line_Tracker_Light = 0;
-          Right_Line_Tracker_Light = 0;
-          Calibration_Time = millis();
-          Cal_Count = 0;
-        }
-        else if((millis() - Calibration_Time) > const_Line_Tracker_Calibration_Interval)
-        {
-          Calibration_Time = millis();
-          readLineTrackers();
-          Left_Line_Tracker_Light += Left_Line_Tracker_Data;
-          Middle_Line_Tracker_Light += Middle_Line_Tracker_Data;
-          Right_Line_Tracker_Light += Right_Line_Tracker_Data;
-          Cal_Count++;
-        }
-        if(Cal_Count == const_Line_Tracker_Cal_Measures)
-        {
-          Left_Line_Tracker_Light /= const_Line_Tracker_Cal_Measures;
-          Middle_Line_Tracker_Light /= const_Line_Tracker_Cal_Measures;
-          Right_Line_Tracker_Light /= const_Line_Tracker_Cal_Measures;
-#ifdef DEBUG_LINE_TRACKER_CALIBRATION
-          Serial.print("Light Levels: Left = ");
-          Serial.print(Left_Line_Tracker_Light,DEC);
-          Serial.print(", Middle = ");
-          Serial.print(Middle_Line_Tracker_Light,DEC);
-          Serial.print(", Right = ");
-          Serial.println(Right_Line_Tracker_Light,DEC);
-#endif           
-          EEPROM.write(ci_Left_Line_Tracker_Light_Address_L, lowByte(Left_Line_Tracker_Light));
-          EEPROM.write(ci_Left_Line_Tracker_Light_Address_H, highByte(Left_Line_Tracker_Light));
-          EEPROM.write(ci_Middle_Line_Tracker_Light_Address_L, lowByte(Middle_Line_Tracker_Light));
-          EEPROM.write(ci_Middle_Line_Tracker_Light_Address_H, highByte(Middle_Line_Tracker_Light));
-          EEPROM.write(ci_Right_Line_Tracker_Light_Address_L, lowByte(Right_Line_Tracker_Light));
-          EEPROM.write(ci_Right_Line_Tracker_Light_Address_H, highByte(Right_Line_Tracker_Light));
-          Robot_State_Index = 0;    // go back to Mode 0
-        }
-        Mode_Indicator_Index = 2; 
-      }
-      break;
-    }
-
-
-    
-    
-    case 3:    // Calibrate line tracker dark levels after 3 seconds
-    {
-      if(bt_3_S_Time_Up)
-      {
-        if(!bt_Cal_Initialized)
-        {
-          bt_Cal_Initialized = true;
-          Left_Line_Tracker_Dark = 0;
-          Middle_Line_Tracker_Dark = 0;
-          Right_Line_Tracker_Dark = 0;
-          Calibration_Time = millis();
-          Cal_Count = 0;
-        }
-        else if((millis() - Calibration_Time) > const_Line_Tracker_Calibration_Interval)
-        {
-          Calibration_Time = millis();
-          readLineTrackers();
-          Left_Line_Tracker_Dark += Left_Line_Tracker_Data;
-          Middle_Line_Tracker_Dark += Middle_Line_Tracker_Data;
-          Right_Line_Tracker_Dark += Right_Line_Tracker_Data;
-          Cal_Count++;
-        }
-        if(Cal_Count == const_Line_Tracker_Cal_Measures)
-        {
-          Left_Line_Tracker_Dark /= const_Line_Tracker_Cal_Measures;
-          Middle_Line_Tracker_Dark /= const_Line_Tracker_Cal_Measures;
-          Right_Line_Tracker_Dark /= const_Line_Tracker_Cal_Measures;
-#ifdef DEBUG_LINE_TRACKER_CALIBRATION
-          Serial.print("Dark Levels: Left = ");
-          Serial.print(Left_Line_Tracker_Dark,DEC);
-          Serial.print(", Middle = ");
-          Serial.print(Middle_Line_Tracker_Dark,DEC);
-          Serial.print(", Right = ");
-          Serial.println(Right_Line_Tracker_Dark,DEC);
-#endif           
-          EEPROM.write(Left_Line_Tracker_Dark_Address_L, lowByte(Left_Line_Tracker_Dark));
-          EEPROM.write(Left_Line_Tracker_Dark_Address_H, highByte(Left_Line_Tracker_Dark));
-          EEPROM.write(Middle_Line_Tracker_Dark_Address_L, lowByte(Middle_Line_Tracker_Dark));
-          EEPROM.write(Middle_Line_Tracker_Dark_Address_H, highByte(Middle_Line_Tracker_Dark));
-          EEPROM.write(Right_Line_Tracker_Dark_Address_L, lowByte(Right_Line_Tracker_Dark));
-          EEPROM.write(Right_Line_Tracker_Dark_Address_H, highByte(Right_Line_Tracker_Dark));
-          Robot_State_Index = 0;    // go back to Mode 0
-        }
-        Mode_Indicator_Index = 3;
-      }
-      break;
-    }
-*/
 
 
 
@@ -405,57 +285,15 @@ void loop()
  
   } //end of switch statement
 
+Serial.print("Mode: ");
+Serial.println(Robot_State_Index);
+
   
 }//end of loop() 
 //---------------------------------------------------------------------------------
 
 
 //---------FUNCTIONS--------------------------------------------------------------
-
-
-
-// read values from line trackers and update status of line tracker LEDs
-void readLineTrackers()
-{
-  Left_Line_Tracker_Data = analogRead(pin_Left_Line_Tracker);
-  Middle_Line_Tracker_Data = analogRead(pin_Middle_Line_Tracker);
-  Right_Line_Tracker_Data = analogRead(pin_Right_Line_Tracker);
-
-  if(Left_Line_Tracker_Data < (Left_Line_Tracker_Dark - Line_Tracker_Tolerance))
-  {
-    CharliePlexM::Write(CP_Left_Line_Tracker_LED, HIGH);
-  }
-  else
-  { 
-    CharliePlexM::Write(CP_Left_Line_Tracker_LED, LOW);
-  }
-  if(Middle_Line_Tracker_Data < (Middle_Line_Tracker_Dark - Line_Tracker_Tolerance))
-  {
-    CharliePlexM::Write(CP_Middle_Line_Tracker_LED, HIGH);
-  }
-  else
-  { 
-    CharliePlexM::Write(CP_Middle_Line_Tracker_LED, LOW);
-  }
-  if(Right_Line_Tracker_Data < (Right_Line_Tracker_Dark - Line_Tracker_Tolerance))
-  {
-    CharliePlexM::Write(CP_Right_Line_Tracker_LED, HIGH);
-  }
-  else
-  { 
-    CharliePlexM::Write(CP_Right_Line_Tracker_LED, LOW);
-  }
-
-#ifdef DEBUG_LINE_TRACKERS
-  Serial.print("Trackers: Left = ");
-  Serial.print(Left_Line_Tracker_Data,DEC);
-  Serial.print(", Middle = ");
-  Serial.print(Middle_Line_Tracker_Data,DEC);
-  Serial.print(", Right = ");
-  Serial.println(Right_Line_Tracker_Data,DEC);
-#endif
-
-}
 
 
 // measure distance to target using ultrasonic sensor  
@@ -480,3 +318,4 @@ void UltrasonicPing()
   Serial.println(Echo_Time/58); //divide time by 58 to get distance in cm 
 #endif
 }  
+
