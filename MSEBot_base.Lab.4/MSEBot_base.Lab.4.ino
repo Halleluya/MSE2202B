@@ -33,9 +33,9 @@ const int pin_Charlieplex_LED3 = 6;
 const int pin_Charlieplex_LED4 = 7;
 const int pin_HallEffect_rightCl = 4;
 const int pin_HallEffect_leftCl = 5;
-const int pin_HallEffect_rightCh = 7;
+const int pin_HallEffect_rightCh = A2;
 const int pin_HallEffect_middleCh = A0;
-const int pin_HallEffect_leftCh = 8; ///*****************arm motor plugged into this one
+const int pin_HallEffect_leftCh = A1; ///*****************arm motor plugged into this one
 const int pin_Mode_Button = 7;
 const int pin_Right_Motor = 9;
 const int pin_Left_Motor = 10;
@@ -56,7 +56,7 @@ const int CP_Left_Line_Tracker_LED = 12;
 //constants
 // EEPROM addresses
 const int const_Grip_Servo_Open = 120;    
-const int const_Grip_Servo_Closed = 45;
+const int const_Grip_Servo_Closed = 35;
     
 const int const_LeftArm_Servo_Down = 55;  
 const int const_LeftArm_Servo_Up = 120;
@@ -101,11 +101,12 @@ boolean bt_Heartbeat = true;
 boolean bt_3_S_Time_Up = false;
 boolean bt_Do_Once = false;
 boolean bt_Cal_Initialized = false;
-boolean tes=false;
-boolean setEncoderZero;
+boolean tes=true;
 
 //hallEffect 
-int hall_Value;
+int middle_hallValue;
+int left_hallValue;
+int right_hallValue;
 
 //james' variables to keep wheels straight -----------------
 int rightMotorSpeed = 1700;
@@ -134,6 +135,8 @@ void setup() {
 
   //set up Hall Effect Sensors
   pinMode(pin_HallEffect_middleCh,INPUT);
+  pinMode(pin_HallEffect_leftCh,INPUT);
+  pinMode(pin_HallEffect_rightCh,INPUT);
   
   // set up drive motors
   pinMode(pin_Right_Motor, OUTPUT);
@@ -218,10 +221,10 @@ void loop()
               case 1:  //Robot run mode 1
               {
                  //turn off the motors
-                 servo_GripServo.detach();
-                 servo_WristServo.detach();
-                 servo_ArmServoLeft.detach();
-                 servo_ArmServoRight.detach();
+                 //servo_GripServo.detach();
+                 //servo_WristServo.detach();
+                 //servo_ArmServoLeft.detach();
+                 //servo_ArmServoRight.detach();
 
                  //turn the motors on, drive straight until hit a wall
                  stabalizeMotorSpeeds();
@@ -237,17 +240,33 @@ void loop()
                 //     turnAroundRight();           //call function to turn around right
                 //}
 
-                scanForTes();
-                if(hall_Value < 510 || hall_Value>520)
+                if (tes == true)
                 {
-                  Serial.println("Found Terseract!!!");
+                //call function to read hall effect sensors  
+                scanForTes();
+                if(middle_hallValue < 510 || middle_hallValue>520) //middle sensor detects teseract 
+                {
                   leftMotorSpeed=1500;
                   rightMotorSpeed=1500;
-
-                  tes=true;
+                  pickUpTes();
+                  tes = false;
                 }
-                if (tes==true)
-                {pickUpTes();}
+                if (left_hallValue<503 || left_hallValue>512)  //left sesnor detects teseract
+                {
+                  leftMotorSpeed=1500;
+                  rightMotorSpeed=1500;
+                  tes=false;
+                  pickUpTes_left();
+                  
+                }
+                if (right_hallValue<510 || right_hallValue>520)  //left sesnor detects teseract
+                {
+                  leftMotorSpeed=1500;
+                  rightMotorSpeed=1500;
+                  pickUpTes_right();
+                  tes=false;
+                }
+                }
 
                 //keep driving straight (for testing purposes)
                 servo_LeftMotor.write(leftMotorSpeed); 
@@ -324,15 +343,20 @@ void UltrasonicPing()       // measure distance to target using ultrasonic senso
 //function to simply pick up tesseracts
 void GripServo()
 {
+      
+      servo_GripServo.attach(pin_Grip_Servo);
+      servo_WristServo.attach(pin_Wrist_Servo);
+      
       servo_WristServo.write(const_Wrist_Servo_Middle);
       servo_GripServo.write(const_Grip_Servo_Open);
       delay(1000);
       servo_WristServo.write(const_Wrist_Servo_Down);
       delay(1000);
       servo_GripServo.write(const_Grip_Servo_Closed);
+      Serial.print("servo closed. ");
       delay(1000);
       servo_WristServo.write(const_Wrist_Servo_Middle);
-      
+      Serial.println("servo wrist up. ");
   
 }
 
@@ -494,35 +518,126 @@ void turnAroundLeft()
               rightEncoder = 0;
 }
 
+void moveRobotBack()
+{
+    Serial.print("Right Encoder: ");
+    Serial.println(encoder_RightMotor.getRawPosition());
+    while(encoder_RightMotor.getRawPosition()>-60)
+    {
+         servo_LeftMotor.write(1400);
+         servo_RightMotor.write(1400);
+         Serial.print("Right Encoder: ");
+         Serial.println(encoder_RightMotor.getRawPosition());
+    }
+}
+
 void scanForTes()
 {
-    hall_Value=analogRead(pin_HallEffect_middleCh);
-    Serial.println(hall_Value);  
+    //read hall effect sensors left, middle and right
+    left_hallValue=analogRead(pin_HallEffect_leftCh);
+    middle_hallValue=analogRead(pin_HallEffect_middleCh);
+    right_hallValue=analogRead(pin_HallEffect_rightCh);
+
+    //print hall effect values
+    Serial.print("Left Hall: ");
+    Serial.println(left_hallValue);
+    Serial.print("Middle Hall: ");
+    Serial.println(middle_hallValue);      
+    Serial.print("Right Hall: ");
+    Serial.println(right_hallValue);
 }
 
 void pickUpTes()
 {
-    //zero encoders once
-    //if (setEncoderZero)
-    //{
-    encoder_RightMotor.zero();
-    //setEncoderZero=false;
-    //}
+    Serial.println("Found Terseract!!!");
 
-    //move robot back     cm
-    Serial.print("Right Encoder: ");
-    Serial.println(encoder_RightMotor.getRawPosition());
-    if(encoder_RightMotor.getRawPosition()>-30)
+    //zero encoders
+    encoder_RightMotor.zero();
+
+
+    //call function to move robot back 2 cm
+    moveRobotBack();
+    
+    //stop robot after its moved back
+    servo_LeftMotor.write(1500);
+    servo_RightMotor.write(1500);
+
+    //call function to pick up teseracts
+    GripServo();
+
+    tes=false;
+}
+
+void pickUpTes_right()
+{
+    Serial.println("Found Teseracts!!!! :) ");
+
+    //zero encoders
+    encoder_RightMotor.zero();
+
+    //move back 2 cm
+    moveRobotBack();
+
+    //stop robot after it has moved back
+    servo_LeftMotor.write(1500);
+    servo_RightMotor.write(1500);
+
+    //zero encoder
+    encoder_RightMotor.zero();
+
+    //rotate right x degrees
+    while(encoder_RightMotor.getRawPosition()>-100)
+    {
+         servo_LeftMotor.write(1600);
+         servo_RightMotor.write(1400);
+         Serial.print("Right Encoder: ");
+         Serial.println(encoder_RightMotor.getRawPosition());
+    }
+
+    //stop motors after its rotated
+    servo_LeftMotor.write(1500);
+    servo_RightMotor.write(1500);
+    
+    //call function to pick up teseracts
+    GripServo();
+
+    tes=false;
+}
+
+void pickUpTes_left()
+{
+    Serial.println("Found Teseracts!!!! :) ");
+
+    //zero encoders
+    encoder_RightMotor.zero();
+
+    //move back 2 cm
+    moveRobotBack();
+
+    //stop robot after it has moved back
+    servo_LeftMotor.write(1500);
+    servo_RightMotor.write(1500);
+
+    //zero encoder
+    encoder_RightMotor.zero();
+
+    //rotate right x degrees
+    while(encoder_RightMotor.getRawPosition()>100)
     {
          servo_LeftMotor.write(1400);
-         servo_RightMotor.write(1400);
+         servo_RightMotor.write(1600);
+         Serial.print("Right Encoder: ");
+         Serial.println(encoder_RightMotor.getRawPosition());
     }
-    else
-    {
-         servo_LeftMotor.write(1500);
-         servo_RightMotor.write(1500);
-         tes=false;
-    }
+
+    //stop motors after its rotated
+    servo_LeftMotor.write(1500);
+    servo_RightMotor.write(1500);
     
+    //call function to pick up teseracts
+    GripServo();
+
+    tes=false;
+
 }
 
