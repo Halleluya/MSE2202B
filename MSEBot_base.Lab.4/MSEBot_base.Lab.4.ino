@@ -575,26 +575,29 @@ void pickUpTes_right()
     //zero encoders
     encoder_RightMotor.zero();
 
+
+
+    //rotate until teseract is centered with robot degrees
+    while(middle_hallValue > 510 && middle_hallValue<520)
+    {
+         servo_LeftMotor.write(1600);
+         servo_RightMotor.write(1400);
+         scanForTes();
+         Serial.print("hall value: ");
+         Serial.println(middle_hallValue);
+    }
+
+    //stop motors after its rotated
+    servo_LeftMotor.write(1500);
+    servo_RightMotor.write(1500);
+
+    //zero encoders
+    encoder_RightMotor.zero();
+
     //move back 2 cm
     moveRobotBack();
 
     //stop robot after it has moved back
-    servo_LeftMotor.write(1500);
-    servo_RightMotor.write(1500);
-
-    //zero encoder
-    encoder_RightMotor.zero();
-
-    //rotate right x degrees
-    while(encoder_RightMotor.getRawPosition()>-100)
-    {
-         servo_LeftMotor.write(1600);
-         servo_RightMotor.write(1400);
-         Serial.print("Right Encoder: ");
-         Serial.println(encoder_RightMotor.getRawPosition());
-    }
-
-    //stop motors after its rotated
     servo_LeftMotor.write(1500);
     servo_RightMotor.write(1500);
     
@@ -611,26 +614,31 @@ void pickUpTes_left()
     //zero encoders
     encoder_RightMotor.zero();
 
-    //move back 2 cm
-    moveRobotBack();
-
-    //stop robot after it has moved back
-    servo_LeftMotor.write(1500);
-    servo_RightMotor.write(1500);
-
-    //zero encoder
-    encoder_RightMotor.zero();
-
     //rotate right x degrees
-    while(encoder_RightMotor.getRawPosition()>100)
+    while(middle_hallValue > 510 && middle_hallValue<520)
     {
          servo_LeftMotor.write(1400);
          servo_RightMotor.write(1600);
-         Serial.print("Right Encoder: ");
-         Serial.println(encoder_RightMotor.getRawPosition());
+         scanForTes();
+         Serial.print("hall value: ");
+         Serial.println(middle_hallValue);
     }
-
+    delay(1000);
     //stop motors after its rotated
+    servo_LeftMotor.write(1500);
+    servo_RightMotor.write(1500);
+
+    //zero encoders
+    encoder_RightMotor.zero();
+
+    //move back 2 cm
+    moveRobotBack();
+    delay(100);
+    moveRobotBack();
+    delay(100);
+    moveRobotBack();
+
+    //stop robot after it has moved back
     servo_LeftMotor.write(1500);
     servo_RightMotor.write(1500);
     
