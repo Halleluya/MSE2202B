@@ -33,9 +33,9 @@ const int pin_Charlieplex_LED3 = 6;
 const int pin_Charlieplex_LED4 = 7;
 const int pin_HallEffect_rightCl = 4;
 const int pin_HallEffect_leftCl = 5;
-const int pin_HallEffect_rightCh = 6;
-const int pin_HallEffect_middleCh = 7;
-const int pin_HallEffect_leftCh = 8; ///*****************arm motor plugged into this one
+const int pin_HallEffect_rightCh = A2;
+const int pin_HallEffect_middleCh = A0;
+const int pin_HallEffect_leftCh = A1; ///*****************arm motor plugged into this one
 const int pin_Mode_Button = 7;
 const int pin_Right_Motor = 9;
 const int pin_Left_Motor = 10;
@@ -56,7 +56,7 @@ const int CP_Left_Line_Tracker_LED = 12;
 //constants
 // EEPROM addresses
 const int const_Grip_Servo_Open = 120;    
-const int const_Grip_Servo_Closed = 45;
+const int const_Grip_Servo_Closed = 35;
     
 const int const_LeftArm_Servo_Down = 55;  
 const int const_LeftArm_Servo_Up = 120;
@@ -74,6 +74,7 @@ byte b_HighByte;
 unsigned long Echo_Time;
 long Left_Motor_Position;
 long Right_Motor_Position;
+double tempPosition;
 
 unsigned long Display_Time;
 unsigned long Left_Motor_Offset;
@@ -101,8 +102,12 @@ boolean bt_Heartbeat = true;
 boolean bt_3_S_Time_Up = false;
 boolean bt_Do_Once = false;
 boolean bt_Cal_Initialized = false;
+boolean tes=true;
 
-
+//hallEffect 
+int middle_hallValue;
+int left_hallValue;
+int right_hallValue;
 
 //james' variables to keep wheels straight -----------------
 int rightMotorSpeed = 1700;
@@ -116,7 +121,7 @@ int MODULARSPEED = 10;
 
 //bridge's variable for the turn right function
 int rightEncoder = 0;
-
+int turnCounter = 0;
 
 
 void setup() {
@@ -129,6 +134,11 @@ void setup() {
   pinMode(pin_Ultrasonic_Ping, OUTPUT);
   pinMode(pin_Ultrasonic_Data, INPUT);
 
+  //set up Hall Effect Sensors
+  pinMode(pin_HallEffect_middleCh,INPUT);
+  pinMode(pin_HallEffect_leftCh,INPUT);
+  pinMode(pin_HallEffect_rightCh,INPUT);
+  
   // set up drive motors
   pinMode(pin_Right_Motor, OUTPUT);
   servo_RightMotor.attach(pin_Right_Motor);
@@ -204,6 +214,9 @@ void loop()
                  //zero the encoder
                 encoder_LeftMotor.zero();
                 encoder_RightMotor.zero();
+
+                //reset the turnCounter variable to 0
+                turnCounter = 0;
                 
                 break;
               } 
@@ -212,13 +225,17 @@ void loop()
               case 1:  //Robot run mode 1
               {
                  //turn off the motors
-                 servo_GripServo.detach();
-                 servo_WristServo.detach();
-                 servo_ArmServoLeft.detach();
-                 servo_ArmServoRight.detach();
+                 //servo_GripServo.detach();
+                 //servo_WristServo.detach();
+                 //servo_ArmServoLeft.detach();
+                 //servo_ArmServoRight.detach();
 
                  //turn the motors on, drive straight until hit a wall
+                 leftMotorSpeed = 1800;
+                 rightMotorSpeed = 1700;
                  stabalizeMotorSpeeds();
+                 servo_LeftMotor.write(leftMotorSpeed); 
+                 servo_RightMotor.write(rightMotorSpeed);
 
                  
                 UltrasonicPing();          
@@ -227,13 +244,71 @@ void loop()
                      Serial.println("Just btw I'm close to the wall and stopping.");
                      leftMotorSpeed = 1500;
                      rightMotorSpeed = 1500;
-                     
-                     turnAroundRight();           //call function to turn around right
+
+                     turnCounter++;
+
+                    if (turnCounter % 2 != 0)
+                    {
+                          turnAroundRight();           //call function to turn around right
+                    }
+
+                    else if (turnCounter % 2 == 0)
+                    {
+                          turnAroundLeft();           //call function to turn around left
+                    }
+
+                    Serial.print("TurnCounter = ");
+                    Serial.println(turnCounter);
+               
                 }
 
-                //keep driving straight (for testing purposes)
-                servo_LeftMotor.write(leftMotorSpeed); 
-                servo_RightMotor.write(rightMotorSpeed);
+                if (tes == true)
+                {
+                        //call function to read hall effect sensors  
+                        scanForTes();
+                        if(middle_hallValue < 510 || middle_hallValue>520) //middle sensor detects teseract 
+                        {
+                            leftMotorSpeed=1500;
+                            rightMotorSpeed=1500;
+                            pickUpTes();
+                            delay(1000);
+                            tes = false;
+                        }
+                        if (left_hallValue<505 || left_hallValue>516)  //left sensor detects teseract
+                        {
+                            leftMotorSpeed=1500;
+                            rightMotorSpeed=1500;
+                            pickUpTes_left();
+                            delay(1000);
+                            tes=false;
+                          
+                        }
+                        if (right_hallValue<510 || right_hallValue>520)  //left sensor detects teseract
+                        {
+                            leftMotorSpeed=1500;
+                            rightMotorSpeed=1500;
+                            pickUpTes_right();
+                            delay(1000);
+                            tes=false;
+                        }
+                }
+
+
+                else
+                {
+                        //if the last turn was a left turn, robot is driving away from home 
+                        if (turnCounter % 2 == 0)
+                        {
+                            returnToHome_left();
+                        }
+
+                        //if the last turn was a right turn, robot is driving towards home
+                        else if (turnCounter % 2 != 0)
+                        {
+                            returnToHome_right();
+                        }
+                }       
+
                 
      
 
@@ -306,15 +381,20 @@ void UltrasonicPing()       // measure distance to target using ultrasonic senso
 //function to simply pick up tesseracts
 void GripServo()
 {
+      
+      servo_GripServo.attach(pin_Grip_Servo);
+      servo_WristServo.attach(pin_Wrist_Servo);
+      
       servo_WristServo.write(const_Wrist_Servo_Middle);
       servo_GripServo.write(const_Grip_Servo_Open);
       delay(1000);
       servo_WristServo.write(const_Wrist_Servo_Down);
       delay(1000);
       servo_GripServo.write(const_Grip_Servo_Closed);
+      Serial.print("servo closed. ");
       delay(1000);
       servo_WristServo.write(const_Wrist_Servo_Middle);
-      
+      Serial.println("servo wrist up. ");
   
 }
 
@@ -442,7 +522,7 @@ void turnAroundLeft()
         leftMotorSpeed = 1650;
 
          //drive straight parallel to wall
-        while(rightEncoder > -10000)
+        while(rightEncoder < 6200)
         {
            
             servo_LeftMotor.write(leftMotorSpeed);
@@ -456,11 +536,11 @@ void turnAroundLeft()
                   
         }
 
-              encoder_RightMotor.zero();
-              rightEncoder = 0;
+        encoder_RightMotor.zero();
+        rightEncoder = 0;
         
         //turn left again to start driving away from wall
-        while(rightEncoder < 12000)
+        while(rightEncoder < 15000)
         {
             servo_LeftMotor.write(1350);
             servo_RightMotor.write(1650);
@@ -472,8 +552,344 @@ void turnAroundLeft()
                   
         }
 
-              encoder_RightMotor.zero();
-              rightEncoder = 0;
-      
+        encoder_RightMotor.zero();
+        rightEncoder = 0;
+}
+
+void moveRobotBack()
+{
+    Serial.print("Right Encoder: ");
+    Serial.println(encoder_RightMotor.getRawPosition());
+    while(encoder_RightMotor.getRawPosition()>-60)
+    {
+         servo_LeftMotor.write(1400);
+         servo_RightMotor.write(1400);
+         Serial.print("Right Encoder: ");
+         Serial.println(encoder_RightMotor.getRawPosition());
+    }
+    encoder_RightMotor.zero();
+}
+
+void scanForTes()
+{
+    //read hall effect sensors left, middle and right
+    left_hallValue=analogRead(pin_HallEffect_leftCh);
+    middle_hallValue=analogRead(pin_HallEffect_middleCh);
+    right_hallValue=analogRead(pin_HallEffect_rightCh);
+
+    //print hall effect values
+    Serial.print("Left Hall: ");
+    Serial.println(left_hallValue);
+    Serial.print("Middle Hall: ");
+    Serial.println(middle_hallValue);      
+    Serial.print("Right Hall: ");
+    Serial.println(right_hallValue);
+}
+
+void pickUpTes()
+{
+    Serial.println("Found Terseract!!!");
+
+    //zero encoders
+    encoder_RightMotor.zero();
+
+
+    //call function to move robot back 2 cm
+    moveRobotBack();
+    
+    //stop robot after its moved back
+    servo_LeftMotor.write(1500);
+    servo_RightMotor.write(1500);
+
+    //call function to pick up teseracts
+    GripServo();
+
+    tes=false;
+}
+
+void pickUpTes_right()
+{
+    Serial.println("Found Teseracts!!!! :) ");
+
+    //zero encoders
+    encoder_RightMotor.zero();
+
+
+
+    //rotate until teseract is centered with robot degrees
+    while(middle_hallValue > 510 && middle_hallValue<520)
+    {
+         servo_LeftMotor.write(1600);
+         servo_RightMotor.write(1400);
+         scanForTes();
+         Serial.print("Middle Hall value turning: ");
+         Serial.println(middle_hallValue);
+    }
+
+    //stop motors after its rotated
+    servo_LeftMotor.write(1500);
+    servo_RightMotor.write(1500);
+
+    //zero encoders
+    encoder_RightMotor.zero();
+
+    //move back 2 cm
+    moveRobotBack();
+
+    //stop robot after it has moved back
+    servo_LeftMotor.write(1500);
+    servo_RightMotor.write(1500);
+    
+    //call function to pick up teseracts
+    GripServo();
+
+    //rotate back to straight position
+    while (encoder_RightMotor.getRawPosition()>0)
+    {
+      servo_RightMotor.write(1600);
+      servo_LeftMotor.write(1400); 
+    }
+
+    //stop motors after its rotated
+    servo_LeftMotor.write(1500);
+    servo_RightMotor.write(1500);
+
+    tes=false;
+}
+
+void pickUpTes_left()
+{
+    Serial.println("Found Teseracts!!!! :) ");
+
+    //zero encoders
+    encoder_RightMotor.zero();
+
+    //rotate right x degrees
+    while(middle_hallValue > 510 && middle_hallValue<520)
+    {
+         servo_LeftMotor.write(1400);
+         servo_RightMotor.write(1600);
+         scanForTes();
+         Serial.print("hall value: ");
+         Serial.println(middle_hallValue);
+         Serial.print("encoder: ");
+         Serial.println(encoder_RightMotor.getRawPosition());
+    }
+    tempPosition=encoder_RightMotor.getRawPosition();
+    delay(1000);
+    //stop motors after its rotated
+    servo_LeftMotor.write(1500);
+    servo_RightMotor.write(1500);
+
+    //zero encoders
+    encoder_RightMotor.zero();
+
+    //move back 2 cm
+    moveRobotBack();
+    delay(100);
+    moveRobotBack();
+
+
+    //stop robot after it has moved back
+    servo_LeftMotor.write(1500);
+    servo_RightMotor.write(1500);
+    
+    //call function to pick up teseracts
+    GripServo();
+
+    //zero encoders
+    encoder_RightMotor.zero();
+
+    //rotate back to straight position
+    while (encoder_RightMotor.getRawPosition()<tempPosition)
+    {
+      servo_RightMotor.write(1400);
+      servo_LeftMotor.write(1600); 
+    }
+
+    //stop motors after its rotated
+    servo_LeftMotor.write(1500);
+    servo_RightMotor.write(1500);
+
+    tes=false;
 
 }
+
+void returnToHome_left()
+{
+      Serial.print("Returning Home_Left");
+  
+      encoder_RightMotor.zero();
+      rightEncoder = 0;
+
+      //turn left 90 degrees towards side wall
+      while(rightEncoder < 14000)
+      {
+          servo_LeftMotor.write(1350);
+          servo_RightMotor.write(1650);
+
+          Serial.print("Encoder R: ");
+          Serial.println(rightEncoder);
+ 
+          rightEncoder = rightEncoder + encoder_RightMotor.getRawPosition();
+                  
+      }
+      servo_LeftMotor.write(1500);
+      servo_RightMotor.write(1500);
+
+      //drive towards side wall but stop before hitting it
+      while ((Echo_Time/24 > 30) && (Echo_Time != 0))
+      {
+           UltrasonicPing(); 
+           Serial.println("Just btw I'm close to the wall and stopping.");
+           leftMotorSpeed = 1700;
+            rightMotorSpeed = 1700;
+            stabalizeMotorSpeeds();
+            servo_LeftMotor.write(leftMotorSpeed);
+            servo_RightMotor.write(rightMotorSpeed);
+   
+      }
+
+      //stop 
+      servo_LeftMotor.write(1500);
+      servo_RightMotor.write(1500);
+
+      //turn left another 90 degrees along the wall
+      while(rightEncoder < 14000)
+      {
+          servo_LeftMotor.write(1350);
+          servo_RightMotor.write(1650);
+
+          Serial.print("Encoder R: ");
+          Serial.println(rightEncoder);
+ 
+          rightEncoder = rightEncoder + encoder_RightMotor.getRawPosition();
+                  
+      }
+      servo_LeftMotor.write(1500);
+      servo_RightMotor.write(1500);
+
+      //drive towards side wall but stop before hitting it
+      while ((Echo_Time/24 > 30) && (Echo_Time != 0))
+      {
+           UltrasonicPing(); 
+           Serial.println("Just btw I'm close to the wall and stopping.");
+           leftMotorSpeed = 1650;
+            rightMotorSpeed = 1650;
+            stabalizeMotorSpeeds();
+            servo_LeftMotor.write(leftMotorSpeed);
+            servo_RightMotor.write(rightMotorSpeed);
+      }
+      servo_LeftMotor.write(1500);
+      servo_RightMotor.write(1500);
+
+      //turn right 90 degrees to face the home base
+      while(rightEncoder > -14000)
+      {
+          servo_LeftMotor.write(1650);
+          servo_RightMotor.write(1350);
+
+          Serial.print("Encoder R: ");
+          Serial.println(rightEncoder);
+
+          rightEncoder = rightEncoder + encoder_RightMotor.getRawPosition();
+                
+      }
+      servo_LeftMotor.write(1500);
+      servo_RightMotor.write(1500);
+
+        //drop off the tesseract
+      
+}
+
+void returnToHome_right()
+{
+      Serial.print("Returning Home_Right");
+      
+      encoder_RightMotor.zero();
+      rightEncoder = 0;
+
+      //turn right 90 degrees towards side wall
+       while(rightEncoder > -14000)
+        {
+            servo_LeftMotor.write(1650);
+            servo_RightMotor.write(1350);
+
+            Serial.print("Encoder R: ");
+            Serial.println(rightEncoder);
+ 
+            rightEncoder = rightEncoder + encoder_RightMotor.getRawPosition();
+                  
+        }
+            servo_LeftMotor.write(1500);
+            servo_RightMotor.write(1500);
+
+      //drive towards side wall but stop before hitting it
+      while ((Echo_Time/24 > 30) && (Echo_Time != 0))
+      {
+           UltrasonicPing(); 
+           Serial.println("Just btw I'm close to the wall and stopping.");
+           leftMotorSpeed = 1700;
+            rightMotorSpeed = 1700;
+            stabalizeMotorSpeeds();
+            servo_LeftMotor.write(leftMotorSpeed);
+            servo_RightMotor.write(rightMotorSpeed);
+   
+      }
+
+      //stop 
+      servo_LeftMotor.write(1500);
+      servo_RightMotor.write(1500);
+
+      //turn left another 90 degrees along the wall
+      while(rightEncoder < 14000)
+      {
+          servo_LeftMotor.write(1350);
+          servo_RightMotor.write(1650);
+
+          Serial.print("Encoder R: ");
+          Serial.println(rightEncoder);
+ 
+          rightEncoder = rightEncoder + encoder_RightMotor.getRawPosition();
+                  
+      }
+      
+      servo_LeftMotor.write(1500);
+      servo_RightMotor.write(1500);
+
+      //drive towards side wall but stop before hitting it
+      while ((Echo_Time/24 > 30) && (Echo_Time != 0))
+      {
+           UltrasonicPing(); 
+           Serial.println("Just btw I'm close to the wall and stopping.");
+           leftMotorSpeed = 1700;
+            rightMotorSpeed = 1700;
+            stabalizeMotorSpeeds();
+            servo_LeftMotor.write(leftMotorSpeed);
+            servo_RightMotor.write(rightMotorSpeed);
+      }
+
+      servo_LeftMotor.write(1500);
+      servo_RightMotor.write(1500);
+
+      //turn right 90 degrees to face the home base
+      while(rightEncoder > -14000)
+        {
+            servo_LeftMotor.write(1650);
+            servo_RightMotor.write(1350);
+
+            Serial.print("Encoder R: ");
+            Serial.println(rightEncoder);
+ 
+            rightEncoder = rightEncoder + encoder_RightMotor.getRawPosition();
+                  
+        }
+
+        servo_LeftMotor.write(1500);
+        servo_RightMotor.write(1500);
+
+        //drop off the tesseract
+  
+}
+
+
