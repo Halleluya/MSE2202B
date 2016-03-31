@@ -22,6 +22,7 @@ I2CEncoder encoder_LeftMotor;
 //#define DEBUG_ENCODERS
 //#define DEBUG_ULTRASONIC
 //#define DEBUG_MOTOR_CALIBRATION
+#define JAMES_DEBUG_MOTOR_STABILIZATION
 
 
 //PIN VARIABLES
@@ -415,10 +416,12 @@ void stabalizeMotorSpeeds()
         int leftDiff = encoder_LeftMotor.getRawPosition() - LoldE;
         int rightDiff = encoder_RightMotor.getRawPosition() - RoldE;
     
-        //Serial.print("leftDiff: ");
-        //Serial.print(leftDiff);
-        //Serial.print("   rightDiff: ");
-        //Serial.println(rightDiff);   
+        #ifdef JAMES_DEBUG_MOTOR_STABILIZATION
+        Serial.print("leftDiff: ");
+        Serial.print(leftDiff);
+        Serial.print("   rightDiff: ");
+        Serial.println(rightDiff);   
+        #endif
       
         if (leftDiff < rightDiff){leftMotorSpeed += MODULARSPEED;}
         else if (leftDiff > rightDiff){leftMotorSpeed -= MODULARSPEED;}
