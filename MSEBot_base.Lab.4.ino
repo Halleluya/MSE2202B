@@ -22,7 +22,6 @@ I2CEncoder encoder_LeftMotor;
 //#define DEBUG_ENCODERS
 //#define DEBUG_ULTRASONIC
 //#define DEBUG_MOTOR_CALIBRATION
-#define JAMES_DEBUG_MOTOR_STABILIZATION
 
 
 //PIN VARIABLES
@@ -37,6 +36,11 @@ const int pin_HallEffect_leftCl = 5;
 const int pin_HallEffect_rightCh = A2;
 const int pin_HallEffect_middleCh = A0;
 const int pin_HallEffect_leftCh = A1; ///*****************arm motor plugged into this one
+
+
+const int pin_HallEffect_rightClaw = A3;
+const int pin_HallEffect_leftClaw = A4;
+
 const int pin_Mode_Button = 7;
 const int pin_Right_Motor = 9;
 const int pin_Left_Motor = 10;
@@ -140,6 +144,9 @@ void setup() {
   pinMode(pin_HallEffect_leftCh,INPUT);
   pinMode(pin_HallEffect_rightCh,INPUT);
   
+  pinMode(pin_HallEffect_rightClaw,INPUT);
+  pinMode(pin_HallEffect_leftClaw,INPUT);
+  
   // set up drive motors
   pinMode(pin_Right_Motor, OUTPUT);
   servo_RightMotor.attach(pin_Right_Motor);
@@ -224,6 +231,9 @@ void loop()
                 MODULARSPEED = 10;
                 rightEncoder = 0;
                 turnCounter = 0;
+                middle_hallValue=515;
+                left_hallValue=508;
+                right_hallValue=515;
                 
                 break;
               } 
@@ -238,7 +248,7 @@ void loop()
                  //servo_ArmServoRight.detach();
 
                  //turn the motors on, drive straight until hit a wall
-                 leftMotorSpeed = 1800;
+                 leftMotorSpeed = 1870;
                  rightMotorSpeed = 1700;
                  stabalizeMotorSpeeds();
                  servo_LeftMotor.write(leftMotorSpeed); 
@@ -246,7 +256,7 @@ void loop()
 
                  
                 UltrasonicPing();          
-                if ((Echo_Time/24 < 30) && (Echo_Time != 0))    //if distance is less than 10 and not during startup
+                if ((Echo_Time/24 < 15) && (Echo_Time != 0))    //if distance is less than 10 and not during startup
                 {
                      Serial.println("Just btw I'm close to the wall and stopping.");
                      leftMotorSpeed = 1500;
@@ -273,15 +283,15 @@ void loop()
                 {
                         //call function to read hall effect sensors  
                         scanForTes();
-                        if(middle_hallValue < 510 || middle_hallValue>520) //middle sensor detects teseract 
+                        /*if(middle_hallValue < 480 || middle_hallValue>535) //middle sensor detects teseract 
                         {
                             leftMotorSpeed=1500;
                             rightMotorSpeed=1500;
                             pickUpTes();
                             delay(1000);
                             tes = false;
-                        }
-                        if (left_hallValue<505 || left_hallValue>516)  //left sensor detects teseract
+                        }*/
+                        if (left_hallValue<500|| left_hallValue>516)  //left sensor detects teseract
                         {
                             leftMotorSpeed=1500;
                             rightMotorSpeed=1500;
@@ -290,7 +300,7 @@ void loop()
                             tes=false;
                           
                         }
-                        if (right_hallValue<510 || right_hallValue>520)  //left sensor detects teseract
+                        if (right_hallValue<510 || right_hallValue>520)  //right sensor detects teseract
                         {
                             leftMotorSpeed=1500;
                             rightMotorSpeed=1500;
@@ -314,7 +324,7 @@ void loop()
                         {
                             returnToHome_right();
                         }
-                }       
+                }   
 
                 
      
@@ -416,12 +426,10 @@ void stabalizeMotorSpeeds()
         int leftDiff = encoder_LeftMotor.getRawPosition() - LoldE;
         int rightDiff = encoder_RightMotor.getRawPosition() - RoldE;
     
-        #ifdef JAMES_DEBUG_MOTOR_STABILIZATION
-        Serial.print("leftDiff: ");
-        Serial.print(leftDiff);
-        Serial.print("   rightDiff: ");
-        Serial.println(rightDiff);   
-        #endif
+        //Serial.print("leftDiff: ");
+        //Serial.print(leftDiff);
+        //Serial.print("   rightDiff: ");
+        //Serial.println(rightDiff);   
       
         if (leftDiff < rightDiff){leftMotorSpeed += MODULARSPEED;}
         else if (leftDiff > rightDiff){leftMotorSpeed -= MODULARSPEED;}
@@ -485,7 +493,7 @@ void turnAroundRight()
 
         
         //turn right again to start driving away from wall
-        while(rightEncoder > -12000)
+        while(rightEncoder > -9000)
         {
             servo_LeftMotor.write(1650);
             servo_RightMotor.write(1350);
@@ -495,7 +503,9 @@ void turnAroundRight()
  
             rightEncoder = rightEncoder + encoder_RightMotor.getRawPosition();      
         }
-        
+
+        servo_LeftMotor.write(1500);
+        servo_RightMotor.write(1500);
        Serial.print("DONE SECOND TURN RIGHT");
               encoder_RightMotor.zero();
               rightEncoder = 0;
@@ -549,7 +559,7 @@ void turnAroundLeft()
         rightEncoder = 0;
         
         //turn left again to start driving away from wall
-        while(rightEncoder < 15000)
+        while(rightEncoder < 13000)
         {
             servo_LeftMotor.write(1350);
             servo_RightMotor.write(1650);
@@ -743,7 +753,7 @@ void returnToHome_left()
       rightEncoder = 0;
 
       //turn left 90 degrees towards side wall
-      while(rightEncoder < 14000)
+      while(rightEncoder < 13000)
       {
           servo_LeftMotor.write(1350);
           servo_RightMotor.write(1650);
@@ -758,11 +768,11 @@ void returnToHome_left()
       servo_RightMotor.write(1500);
 
       //drive towards side wall but stop before hitting it
-      while ((Echo_Time/24 > 30) && (Echo_Time != 0))
+      while ((Echo_Time/24 > 15) && (Echo_Time != 0))
       {
            UltrasonicPing(); 
            Serial.println("Just btw I'm close to the wall and stopping.");
-           leftMotorSpeed = 1700;
+           leftMotorSpeed = 1870;
             rightMotorSpeed = 1700;
             stabalizeMotorSpeeds();
             servo_LeftMotor.write(leftMotorSpeed);
@@ -774,8 +784,13 @@ void returnToHome_left()
       servo_LeftMotor.write(1500);
       servo_RightMotor.write(1500);
 
+      delay(1000);
+
+      encoder_RightMotor.zero();
+      rightEncoder = 0;
+
       //turn left another 90 degrees along the wall
-      while(rightEncoder < 14000)
+      while(rightEncoder < 11000)
       {
           servo_LeftMotor.write(1350);
           servo_RightMotor.write(1650);
@@ -789,19 +804,32 @@ void returnToHome_left()
       servo_LeftMotor.write(1500);
       servo_RightMotor.write(1500);
 
+      delay(1000);
+
+      UltrasonicPing();
+       
       //drive towards side wall but stop before hitting it
-      while ((Echo_Time/24 > 30) && (Echo_Time != 0))
+      while (true)
       {
            UltrasonicPing(); 
-           Serial.println("Just btw I'm close to the wall and stopping.");
-           leftMotorSpeed = 1650;
-            rightMotorSpeed = 1650;
+           Serial.println("Just btw I'm close to the wall and stopping. AGAIINNNNNN");
+           leftMotorSpeed = 1870;
+            rightMotorSpeed = 1700;
             stabalizeMotorSpeeds();
             servo_LeftMotor.write(leftMotorSpeed);
             servo_RightMotor.write(rightMotorSpeed);
+            if ((Echo_Time/24 < 15) && (Echo_Time != 0))
+            {
+            break;  
+            }
+            
       }
       servo_LeftMotor.write(1500);
       servo_RightMotor.write(1500);
+      delay(1000);
+
+      encoder_RightMotor.zero();
+      rightEncoder = 0;
 
       //turn right 90 degrees to face the home base
       while(rightEncoder > -14000)
@@ -818,7 +846,32 @@ void returnToHome_left()
       servo_LeftMotor.write(1500);
       servo_RightMotor.write(1500);
 
-        //drop off the tesseract
+      delay(1000);
+
+      //drop off teseract at platform
+      servo_GripServo.write(const_Grip_Servo_Open);
+
+      encoder_RightMotor.zero();
+      rightEncoder = 0;
+
+      //turn right 90 degrees to face the home base
+      while(rightEncoder > -14000)
+      {
+          servo_LeftMotor.write(1650);
+          servo_RightMotor.write(1350);
+
+          Serial.print("Encoder R: ");
+          Serial.println(rightEncoder);
+
+          rightEncoder = rightEncoder + encoder_RightMotor.getRawPosition();
+                
+      }
+
+      servo_LeftMotor.write(1500);
+      servo_RightMotor.write(1500);
+
+      //reset all variables to restart scan
+      resetVariables();
       
 }
 
@@ -830,7 +883,7 @@ void returnToHome_right()
       rightEncoder = 0;
 
       //turn right 90 degrees towards side wall
-       while(rightEncoder > -14000)
+       while(rightEncoder > -13000)
         {
             servo_LeftMotor.write(1650);
             servo_RightMotor.write(1350);
@@ -844,25 +897,30 @@ void returnToHome_right()
             servo_LeftMotor.write(1500);
             servo_RightMotor.write(1500);
 
+
       //drive towards side wall but stop before hitting it
-      while ((Echo_Time/24 > 30) && (Echo_Time != 0))
+      while ((Echo_Time/24 > 15) && (Echo_Time != 0))
       {
            UltrasonicPing(); 
            Serial.println("Just btw I'm close to the wall and stopping.");
-           leftMotorSpeed = 1700;
+           leftMotorSpeed = 1870;
             rightMotorSpeed = 1700;
             stabalizeMotorSpeeds();
             servo_LeftMotor.write(leftMotorSpeed);
             servo_RightMotor.write(rightMotorSpeed);
-   
       }
 
       //stop 
       servo_LeftMotor.write(1500);
       servo_RightMotor.write(1500);
 
+      delay(1000);
+
+      encoder_RightMotor.zero();
+      rightEncoder = 0;
+
       //turn left another 90 degrees along the wall
-      while(rightEncoder < 14000)
+      while(rightEncoder < 13000)
       {
           servo_LeftMotor.write(1350);
           servo_RightMotor.write(1650);
@@ -876,24 +934,35 @@ void returnToHome_right()
       
       servo_LeftMotor.write(1500);
       servo_RightMotor.write(1500);
+      delay(1000);
 
+       UltrasonicPing();
+       
       //drive towards side wall but stop before hitting it
-      while ((Echo_Time/24 > 30) && (Echo_Time != 0))
+      while (true)
       {
            UltrasonicPing(); 
-           Serial.println("Just btw I'm close to the wall and stopping.");
-           leftMotorSpeed = 1700;
+           Serial.println("Just btw I'm close to the wall and stopping. AGAIINNNNNN");
+           leftMotorSpeed = 1870;
             rightMotorSpeed = 1700;
             stabalizeMotorSpeeds();
             servo_LeftMotor.write(leftMotorSpeed);
             servo_RightMotor.write(rightMotorSpeed);
+            if ((Echo_Time/24 < 15) && (Echo_Time != 0))
+            {
+            break;  
+            }
+            
       }
 
       servo_LeftMotor.write(1500);
       servo_RightMotor.write(1500);
 
+      encoder_RightMotor.zero();
+      rightEncoder = 0;
+
       //turn right 90 degrees to face the home base
-      while(rightEncoder > -14000)
+      while(rightEncoder > -13000)
         {
             servo_LeftMotor.write(1650);
             servo_RightMotor.write(1350);
@@ -908,7 +977,57 @@ void returnToHome_right()
         servo_LeftMotor.write(1500);
         servo_RightMotor.write(1500);
 
-        //drop off the tesseract
-  
+        delay(1000);
+
+        //drop teseract on platform
+        servo_GripServo.write(const_Grip_Servo_Open);
+
+        encoder_RightMotor.zero();
+        rightEncoder = 0;
+
+        //turn right 90 degrees to original starting position
+        while(rightEncoder > -13000)
+        {
+            servo_LeftMotor.write(1650);
+            servo_RightMotor.write(1350);
+
+            Serial.print("Encoder R: ");
+            Serial.println(rightEncoder);
+ 
+            rightEncoder = rightEncoder + encoder_RightMotor.getRawPosition();
+                  
+        }
+
+        servo_LeftMotor.write(1500);
+        servo_RightMotor.write(1500);
+
+        resetVariables();
 }
 
+void resetVariables()
+{
+      UltrasonicPing();
+      servo_LeftMotor.write(1500); 
+      servo_RightMotor.write(1500); 
+
+      //close claw before detaching it
+      servo_GripServo.write(45);
+      delay(1000);
+
+      //zero the encoder
+      encoder_LeftMotor.zero();
+      encoder_RightMotor.zero();
+
+      //reset all Custom variables
+      rightMotorSpeed = 1700;
+      leftMotorSpeed = 1700;
+      RoldE = 0;
+      LoldE = 0;
+      MODULARSPEED = 10;
+      rightEncoder = 0;
+      turnCounter = 0;
+      middle_hallValue=515;
+      left_hallValue=508;
+      right_hallValue=515;
+      tes=true;
+}
