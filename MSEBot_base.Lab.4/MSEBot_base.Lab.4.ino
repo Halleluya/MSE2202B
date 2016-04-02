@@ -31,8 +31,8 @@ const int pin_Charlieplex_LED1 = 4;
 const int pin_Charlieplex_LED2 = 5;
 const int pin_Charlieplex_LED3 = 6;
 const int pin_Charlieplex_LED4 = 7;
-const int pin_HallEffect_rightCl = 4;
-const int pin_HallEffect_leftCl = 5;
+const int pin_HallEffect_rightCl = A4;
+const int pin_HallEffect_leftCl = A3;
 const int pin_HallEffect_rightCh = A2;
 const int pin_HallEffect_middleCh = A0;
 const int pin_HallEffect_leftCh = A1; ///*****************arm motor plugged into this one
@@ -40,7 +40,7 @@ const int pin_Mode_Button = 7;
 const int pin_Right_Motor = 9;
 const int pin_Left_Motor = 10;
 const int pin_Arm_Servo_Right = 11;
-const int pin_Arm_Servo_Left = 8;
+const int pin_Arm_Servo_Left = 4;
 const int pin_Wrist_Servo = 12;
 const int pin_Grip_Servo = 13;
 const int pin_I2C_SDA = A4;         // I2C data = white
@@ -65,7 +65,8 @@ const int const_RightArm_Servo_Up = 120;
 
 const int const_Wrist_Servo_Down = 25; 
 const int const_Wrist_Servo_Middle = 100;    
-const int const_Wrist_Servo_Up = 170; 
+const int const_Wrist_Servo_Up = 170;
+const int const_Wrist_Servo_Semi_Down=60; 
  
 
 //variables
@@ -108,6 +109,8 @@ boolean tes=true;
 int middle_hallValue;
 int left_hallValue;
 int right_hallValue;
+int left_clawHallValue;
+int right_clawHallValue;
 
 //james' variables to keep wheels straight -----------------
 int rightMotorSpeed = 1700;
@@ -205,11 +208,11 @@ void loop()
                 servo_GripServo.write(45);
                 delay(1000);
                 
-                 //detach the claw and arm motors
-                 servo_GripServo.detach();
-                 servo_WristServo.detach();
-                 servo_ArmServoLeft.detach();
-                 servo_ArmServoRight.detach();
+                //detach the claw and arm motors
+                servo_GripServo.detach();
+                servo_WristServo.detach();
+                servo_ArmServoLeft.detach();
+                servo_ArmServoRight.detach();
           
                  //zero the encoder
                 encoder_LeftMotor.zero();
@@ -275,14 +278,14 @@ void loop()
                 {
                         //call function to read hall effect sensors  
                         scanForTes();
-                        /*if(middle_hallValue < 480 || middle_hallValue>535) //middle sensor detects teseract 
+                        if(middle_hallValue < 500 || middle_hallValue>530) //middle sensor detects teseract 
                         {
                             leftMotorSpeed=1500;
                             rightMotorSpeed=1500;
                             pickUpTes();
                             delay(1000);
                             tes = false;
-                        }*/
+                        }
                         if (left_hallValue<500|| left_hallValue>516)  //left sensor detects teseract
                         {
                             leftMotorSpeed=1500;
@@ -315,6 +318,7 @@ void loop()
                         else if (turnCounter % 2 != 0)
                         {
                             returnToHome_right();
+                            
                         }
                 }   
 
@@ -343,8 +347,48 @@ void loop()
           
               case 2:
               {
-          
-                GripServo();
+                 servo_GripServo.attach(pin_Grip_Servo);
+                 servo_WristServo.attach(pin_Wrist_Servo);
+                 servo_ArmServoLeft.attach(pin_Arm_Servo_Left);
+                 servo_ArmServoRight.attach(pin_Arm_Servo_Right);
+
+                 rotateArm();
+                 
+                 /*scanForTes();
+                 if (tes == true)
+                 {  
+                  if(left_clawHallValue<510 || left_clawHallValue>520 || right_clawHallValue<510 || right_clawHallValue>520)
+                  {
+                   rotateRight();
+
+                   servo_WristServo.write(const_Wrist_Servo_Semi_Down);
+
+                   encoder_RightMotor.zero();
+
+                   while(encoder_RightMotor.getRawPosition()<1000)
+                   {
+                        leftMotorSpeed = 1870;
+                        rightMotorSpeed = 1700;
+                        stabalizeMotorSpeeds();
+                        servo_LeftMotor.write(leftMotorSpeed); 
+                        servo_RightMotor.write(rightMotorSpeed);
+                   } 
+
+                   servo_LeftMotor.write(1500);
+                   servo_RightMotor.write(1500);
+
+                   delay(1000);
+
+                   rotateArm();
+
+                   servo_GripServo.write(const_Grip_Servo_Open);
+
+                   delay(1000);
+                  }
+                 }*/
+                 
+                 
+                
                 break;
                 
               }
@@ -587,6 +631,8 @@ void scanForTes()
     left_hallValue=analogRead(pin_HallEffect_leftCh);
     middle_hallValue=analogRead(pin_HallEffect_middleCh);
     right_hallValue=analogRead(pin_HallEffect_rightCh);
+    left_clawHallValue=analogRead(pin_HallEffect_leftCl);
+    right_clawHallValue=analogRead(pin_HallEffect_rightCl);
 
     //print hall effect values
     Serial.print("Left Hall: ");
@@ -595,6 +641,10 @@ void scanForTes()
     Serial.println(middle_hallValue);      
     Serial.print("Right Hall: ");
     Serial.println(right_hallValue);
+    Serial.print("Left Claw Hall:");
+    Serial.println(left_clawHallValue);
+    Serial.print("right Claw Hall: ");
+    Serial.println(right_clawHallValue);
 }
 
 void pickUpTes()
@@ -1023,4 +1073,45 @@ void resetVariables()
       right_hallValue=515;
       tes=true;
 }
+
+void rotateArm()
+{
+      servo_ArmServoLeft.write(0);
+      servo_ArmServoRight.write(180);
+      
+      delay(700);
+
+      servo_ArmServoLeft.write(90);
+      servo_ArmServoLeft.write(90);
+
+      delay(700);
+
+      servo_ArmServoLeft.write(0);
+      servo_ArmServoRight.write(180);
+}
+
+void rotateRight()
+{
+     encoder_RightMotor.zero();
+     rightEncoder = 0;
+
+     //turn right 90 degrees towards side wall
+     while(rightEncoder > -13000)
+        {
+            servo_LeftMotor.write(1650);
+            servo_RightMotor.write(1350);
+
+            Serial.print("Encoder R: ");
+            Serial.println(rightEncoder);
+ 
+            rightEncoder = rightEncoder + encoder_RightMotor.getRawPosition();
+                  
+        }
+        
+        servo_LeftMotor.write(1500);
+        servo_RightMotor.write(1500);
+
+        delay(700);
+}
+
 
