@@ -234,13 +234,13 @@ void loop()
               } 
           
             
-              case 1:  //Robot run mode 1
+               case 1:  //Robot run mode 1
               {
                  //turn off the motors
                  //servo_GripServo.detach();
                  //servo_WristServo.detach();
-                 //servo_ArmServoLeft.detach();
-                 //servo_ArmServoRight.detach();
+                 servo_ArmServoLeft.detach();
+                 servo_ArmServoRight.detach();
 
                  //turn the motors on, drive straight until hit a wall
                  leftMotorSpeed = 1870;
@@ -343,10 +343,38 @@ void loop()
                
           
                 break;
-              } 
+              }
           
               case 2:
               {
+<<<<<<< HEAD
+                 //servo_GripServo.attach(pin_Grip_Servo);
+                 //servo_WristServo.attach(pin_Wrist_Servo);
+                 //servo_ArmServoLeft.attach(pin_Arm_Servo_Left);
+                 //servo_ArmServoRight.attach(pin_Arm_Servo_Right);
+
+                 
+                 scanForTes();
+                 if (tes == true)
+                 {  
+                  //check to see if there is a tesseract inside the claw
+                  if(left_clawHallValue<500 || left_clawHallValue>507 || right_clawHallValue<510 || right_clawHallValue>520)
+                  {
+                   //turn right 90
+                   rotateRight();
+
+                   //attach servo and detatch servo when needed to ensure power distribution 
+                   servo_WristServo.attach(pin_Wrist_Servo);
+                   delay(500);       
+                   servo_WristServo.write(const_Wrist_Servo_Semi_Down);
+                   delay(500);//need this delay to give servo a chance to rotate
+                   servo_WristServo.detach();
+
+                   //zero encoder for straight
+                   encoder_RightMotor.zero();
+
+                   while(encoder_RightMotor.getRawPosition()<1000)//might need to change while statment for encoder position (robot dependet)
+=======
                  servo_GripServo.attach(pin_Grip_Servo);
                  servo_WristServo.attach(pin_Wrist_Servo);
                  servo_ArmServoLeft.attach(pin_Arm_Servo_Left);
@@ -366,6 +394,7 @@ void loop()
                    encoder_RightMotor.zero();
 
                    while(encoder_RightMotor.getRawPosition()<1000)
+>>>>>>> origin/Jon's-Branch
                    {
                         leftMotorSpeed = 1870;
                         rightMotorSpeed = 1700;
@@ -379,6 +408,23 @@ void loop()
 
                    delay(1000);
 
+<<<<<<< HEAD
+                   servo_LeftMotor.detach();
+                   servo_RightMotor.detach();
+                   servo_WristServo.detach();
+                   delay(500);
+                   
+                   rotateArm();
+
+                   //servo_LeftMotor.attach(pin_Left_Motor);
+                   //servo_RightMotor.attach(pin_Right_Motor);
+
+                   //servo_GripServo.write(const_Grip_Servo_Open);
+
+                   delay(1000);
+                  }
+                 }
+=======
                    rotateArm();
 
                    servo_GripServo.write(const_Grip_Servo_Open);
@@ -386,6 +432,7 @@ void loop()
                    delay(1000);
                   }
                  }*/
+>>>>>>> origin/Jon's-Branch
                  
                  
                 
@@ -1076,6 +1123,35 @@ void resetVariables()
 
 void rotateArm()
 {
+<<<<<<< HEAD
+      servo_ArmServoLeft.attach(pin_Arm_Servo_Left);
+      servo_ArmServoRight.attach(pin_Arm_Servo_Right);
+
+      Serial.print("rotating arm");
+
+      delay(500);
+      servo_ArmServoLeft.write(0);
+      servo_ArmServoRight.write(180);
+      
+      delay(3000);
+
+
+      servo_ArmServoLeft.write(90);
+      servo_ArmServoRight.write(90);
+      
+      Serial.println("rotated arm");
+      delay(3000);
+
+      for (int i=10; i<90; i+=10)
+      {
+      servo_ArmServoLeft.write(90-i);
+      servo_ArmServoRight.write(90+i);
+      delay(1000);
+      }
+      
+      servo_ArmServoLeft.detach();
+      servo_ArmServoRight.detach();
+=======
       servo_ArmServoLeft.write(0);
       servo_ArmServoRight.write(180);
       
@@ -1088,6 +1164,7 @@ void rotateArm()
 
       servo_ArmServoLeft.write(0);
       servo_ArmServoRight.write(180);
+>>>>>>> origin/Jon's-Branch
 }
 
 void rotateRight()
@@ -1115,3 +1192,7 @@ void rotateRight()
 }
 
 
+<<<<<<< HEAD
+
+=======
+>>>>>>> origin/Jon's-Branch
