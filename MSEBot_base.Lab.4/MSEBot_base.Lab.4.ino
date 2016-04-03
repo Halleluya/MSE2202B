@@ -104,6 +104,7 @@ boolean bt_3_S_Time_Up = false;
 boolean bt_Do_Once = false;
 boolean bt_Cal_Initialized = false;
 boolean tes=true;
+boolean startMotor=true;
 
 //hallEffect 
 int middle_hallValue;
@@ -252,18 +253,24 @@ void loop()
                  }
                  
 
+                 
                  //turn the motors on, drive straight until hit a wall
+                 if (startMotor)
+                 {
                  leftMotorSpeed = 1770;
                  rightMotorSpeed = 1700;
                  stabalizeMotorSpeeds();
                  servo_LeftMotor.write(leftMotorSpeed); 
                  servo_RightMotor.write(rightMotorSpeed);
+                 delay(500);
+                 startMotor=false;
+                 }
 
-                //calibrate the hall sensors to find a zero'd value on the 20th ms
-                //this is under the assumption that it will not find a t.ract in the first 20
-                //Serial.println(millis());
-                //if (hallsHaveBeenCalibrated == false && (millis() % 20 == 0))
-                
+                 leftMotorSpeed = 1770;
+                 rightMotorSpeed = 1700;
+                 stabalizeMotorSpeeds();
+                 servo_LeftMotor.write(leftMotorSpeed); 
+                 servo_RightMotor.write(rightMotorSpeed);
                  
                 UltrasonicPing();          
                 if ((Echo_Time/24 < 15) && (Echo_Time != 0))    //if distance is less than 10 and not during startup
@@ -290,11 +297,11 @@ void loop()
                 }
 
                 //will not attempt to pick up a tesseract until after the chasis h. sensors have been calibrated
-                if (tes == true && hallsHaveBeenCalibrated == true)
+                /*if (tes == true && hallsHaveBeenCalibrated == true)
                 {
                         //call function to read hall effect sensors  
                         scanForTes();
-                        if(middle_hallValue < zeroLeftHall - 10 || middle_hallValue> zeroLeftHall + 10) //middle sensor detects teseract 
+                        if(middle_hallValue < zeroLeftHall - 20 || middle_hallValue> zeroLeftHall + 20) //middle sensor detects teseract 
                         {
                             leftMotorSpeed=1500;
                             rightMotorSpeed=1500;
@@ -302,7 +309,7 @@ void loop()
                             delay(1000);
                             tes = false;
                         }
-                        if (left_hallValue < zeroMiddleHall - 10 || left_hallValue > zeroMiddleHall + 10)  //left sensor detects teseract
+                        if (left_hallValue < zeroMiddleHall - 20 || left_hallValue > zeroMiddleHall + 20)  //left sensor detects teseract
                         {
                             leftMotorSpeed=1500;
                             rightMotorSpeed=1500;
@@ -311,9 +318,30 @@ void loop()
                             tes=false;
                           
                         }
-                        if (right_hallValue < zeroRightHall - 10 || right_hallValue > zeroRightHall + 10)  //right sensor detects teseract
-                        {
-                            leftMotorSpeed=1500;
+                        if (right_hallValue < zeroRightHall - 20 || right_hallValue > zeroRightHall + 20)  //right sensor detects teseract
+                        {*/
+
+                          /*
+                            Serial.print("Zero'd Left: ");
+                             Serial.print(zeroLeftHall);
+                             Serial.print("   Zero'd Middle: ");
+                             Serial.print(zeroMiddleHall);
+                             Serial.print("   Zero'd Right: ");
+                             Serial.println(zeroRightHall);
+                             Serial.print("Left: ");
+                             Serial.print(left_hallValue);
+                             Serial.print("Middle: ");
+                             Serial.print(middle_hallValue);
+                             Serial.print("Right: ");
+                             Serial.println(right_hallValue);
+
+
+                            servo_LeftMotor.write(1500);
+                            servo_RightMotor.write(1500);
+                            while(true){Serial.println("infinte loop");}
+                            */
+                            
+                           /* leftMotorSpeed=1500;
                             rightMotorSpeed=1500;
                             pickUpTes_right();
                             delay(1000);
@@ -336,7 +364,7 @@ void loop()
                             returnToHome_right();
                             
                         }
-                }   
+                }   */
 
                 
      
@@ -561,7 +589,7 @@ void turnAroundRight()
 
 
         //turn right parallel to wall
-        while(rightEncoder > -12000)
+        while(rightEncoder > -12500)
         {
             servo_LeftMotor.write(1650);
             servo_RightMotor.write(1350);
@@ -604,7 +632,7 @@ void turnAroundRight()
 
         
         //turn right again to start driving away from wall
-        while(rightEncoder > -14000)
+        while(rightEncoder > -13500)
         {
             servo_LeftMotor.write(1650);
             servo_RightMotor.write(1350);
@@ -670,7 +698,7 @@ void turnAroundLeft()
         rightEncoder = 0;
         
         //turn left again to start driving away from wall
-        while(rightEncoder < 16500)
+        while(rightEncoder < 15500)
         {
             servo_LeftMotor.write(1350);
             servo_RightMotor.write(1650);
