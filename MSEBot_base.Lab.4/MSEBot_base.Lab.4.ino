@@ -63,7 +63,7 @@ const int const_LeftArm_Servo_Up = 120;
 const int const_RightArm_Servo_Down = 55;  
 const int const_RightArm_Servo_Up = 120; 
 
-const int const_Wrist_Servo_Down = 25; 
+const int const_Wrist_Servo_Down = 10; 
 const int const_Wrist_Servo_Middle = 100;    
 const int const_Wrist_Servo_Up = 170;
 const int const_Wrist_Servo_Semi_Down=60; 
@@ -125,6 +125,10 @@ int MODULARSPEED = 10;
 //bridge's variable for the turn right function
 int rightEncoder = 0;
 int turnCounter = 0;
+
+//james' variables to calibrate halls
+int zeroLeftHall, zeroMiddleHall, zeroRightHall = 0;
+bool hallsHaveBeenCalibrated = false;
 
 
 void setup() {
@@ -241,14 +245,25 @@ void loop()
                  //servo_WristServo.detach();
                  servo_ArmServoLeft.detach();
                  servo_ArmServoRight.detach();
+                  
+                 if (hallsHaveBeenCalibrated == false)
+                 {
+                  calibrateHallS();
+                 }
+                 
 
                  //turn the motors on, drive straight until hit a wall
-                 leftMotorSpeed = 1870;
+                 leftMotorSpeed = 1770;
                  rightMotorSpeed = 1700;
                  stabalizeMotorSpeeds();
                  servo_LeftMotor.write(leftMotorSpeed); 
                  servo_RightMotor.write(rightMotorSpeed);
 
+                //calibrate the hall sensors to find a zero'd value on the 20th ms
+                //this is under the assumption that it will not find a t.ract in the first 20
+                //Serial.println(millis());
+                //if (hallsHaveBeenCalibrated == false && (millis() % 20 == 0))
+                
                  
                 UltrasonicPing();          
                 if ((Echo_Time/24 < 15) && (Echo_Time != 0))    //if distance is less than 10 and not during startup
@@ -274,11 +289,12 @@ void loop()
                
                 }
 
-                if (tes == true)
+                //will not attempt to pick up a tesseract until after the chasis h. sensors have been calibrated
+                if (tes == true && hallsHaveBeenCalibrated == true)
                 {
                         //call function to read hall effect sensors  
                         scanForTes();
-                        if(middle_hallValue < 500 || middle_hallValue>530) //middle sensor detects teseract 
+                        if(middle_hallValue < zeroLeftHall - 10 || middle_hallValue> zeroLeftHall + 10) //middle sensor detects teseract 
                         {
                             leftMotorSpeed=1500;
                             rightMotorSpeed=1500;
@@ -286,7 +302,7 @@ void loop()
                             delay(1000);
                             tes = false;
                         }
-                        if (left_hallValue<500|| left_hallValue>516)  //left sensor detects teseract
+                        if (left_hallValue < zeroMiddleHall - 10 || left_hallValue > zeroMiddleHall + 10)  //left sensor detects teseract
                         {
                             leftMotorSpeed=1500;
                             rightMotorSpeed=1500;
@@ -295,7 +311,7 @@ void loop()
                             tes=false;
                           
                         }
-                        if (right_hallValue<510 || right_hallValue>520)  //right sensor detects teseract
+                        if (right_hallValue < zeroRightHall - 10 || right_hallValue > zeroRightHall + 10)  //right sensor detects teseract
                         {
                             leftMotorSpeed=1500;
                             rightMotorSpeed=1500;
@@ -400,7 +416,7 @@ void loop()
                     //drive straight certain distance
                     while(encoder_RightMotor.getRawPosition()<1000)//might need to change while statment for encoder position (robot dependet)
                     {
-                        leftMotorSpeed = 1870;
+                        leftMotorSpeed = 1770;
                         rightMotorSpeed = 1700;
                         stabalizeMotorSpeeds();
                         servo_LeftMotor.write(leftMotorSpeed); 
@@ -588,7 +604,7 @@ void turnAroundRight()
 
         
         //turn right again to start driving away from wall
-        while(rightEncoder > -9000)
+        while(rightEncoder > -14000)
         {
             servo_LeftMotor.write(1650);
             servo_RightMotor.write(1350);
@@ -616,7 +632,7 @@ void turnAroundLeft()
 
 
         //turn left parallel to wall
-        while(rightEncoder < 12000)
+        while(rightEncoder < 16500)
         {
             servo_LeftMotor.write(1350);
             servo_RightMotor.write(1650);
@@ -654,7 +670,7 @@ void turnAroundLeft()
         rightEncoder = 0;
         
         //turn left again to start driving away from wall
-        while(rightEncoder < 13000)
+        while(rightEncoder < 16500)
         {
             servo_LeftMotor.write(1350);
             servo_RightMotor.write(1650);
@@ -873,7 +889,7 @@ void returnToHome_left()
       {
            UltrasonicPing(); 
            Serial.println("Just btw I'm close to the wall and stopping.");
-           leftMotorSpeed = 1870;
+           leftMotorSpeed = 1800;
             rightMotorSpeed = 1700;
             stabalizeMotorSpeeds();
             servo_LeftMotor.write(leftMotorSpeed);
@@ -914,7 +930,7 @@ void returnToHome_left()
       {
            UltrasonicPing(); 
            Serial.println("Just btw I'm close to the wall and stopping. AGAIINNNNNN");
-           leftMotorSpeed = 1870;
+           leftMotorSpeed = 1800;
             rightMotorSpeed = 1700;
             stabalizeMotorSpeeds();
             servo_LeftMotor.write(leftMotorSpeed);
@@ -949,13 +965,39 @@ void returnToHome_left()
 
       delay(1000);
 
+      while(true)
+     {  
+        UltrasonicPing();
+        if(Echo_Time < 330)
+        {
+        servo_LeftMotor.write(1400);
+        servo_RightMotor.write(1400);
+        }
+        else if(Echo_Time > 340)
+        {
+         servo_LeftMotor.write(1600);
+         servo_RightMotor.write(1600);
+        }
+        else if (Echo_Time > 330 && Echo_Time < 340 && Echo_Time != 0)
+        {
+         servo_LeftMotor.write(1500);
+         servo_RightMotor.write(1500);
+         break;
+        }
+        
+      }
+
+      delay(1000);
+      
       //drop off teseract at platform
       servo_GripServo.write(const_Grip_Servo_Open);
 
       encoder_RightMotor.zero();
       rightEncoder = 0;
 
-      //turn right 90 degrees to face the home base
+      delay(1000);
+
+      //turn right 90 degrees to original orientation
       while(rightEncoder > -14000)
       {
           servo_LeftMotor.write(1650);
@@ -1080,11 +1122,36 @@ void returnToHome_right()
 
         delay(1000);
 
+        while(true)
+     {  
+        UltrasonicPing();
+        if(Echo_Time < 330)
+        {
+        servo_LeftMotor.write(1400);
+        servo_RightMotor.write(1400);
+        }
+        else if(Echo_Time > 340)
+        {
+         servo_LeftMotor.write(1600);
+         servo_RightMotor.write(1600);
+        }
+        else if (Echo_Time > 330 && Echo_Time < 340 && Echo_Time != 0)
+        {
+         servo_LeftMotor.write(1500);
+         servo_RightMotor.write(1500);
+         break;
+        }
+        
+      }
+        delay(1000);
+        
         //drop teseract on platform
         servo_GripServo.write(const_Grip_Servo_Open);
 
         encoder_RightMotor.zero();
         rightEncoder = 0;
+
+        delay(1000);
 
         //turn right 90 degrees to original starting position
         while(rightEncoder > -13000)
@@ -1132,7 +1199,11 @@ void resetVariables()
       right_hallValue=515;
       left_clawHallValue=505;
       right_clawHallValue=515;      
+      
+      //reset bool variables
       tes=true;
+      hallsHaveBeenCalibrated=false;
+      
 }
 
 void rotateArm()
@@ -1216,6 +1287,32 @@ void rotateLeft()
                   
         }
     delay(700);
+}
+
+void calibrateHallS()
+{
+
+    //take average of hall effect sensors 
+    for (int i=0; i<50; i++)
+    {scanForTes();
+    zeroMiddleHall += middle_hallValue;
+    zeroRightHall += right_hallValue;
+    zeroLeftHall += left_hallValue;
+    }
+    hallsHaveBeenCalibrated = true;
+    zeroMiddleHall/=50;
+    zeroRightHall/=50;
+    zeroLeftHall/=50;
+    
+
+     Serial.print("Zero'd Left: ");
+     Serial.print(zeroLeftHall);
+     Serial.print("   Zero'd Middle: ");
+     Serial.print(zeroMiddleHall);
+     Serial.print("   Zero'd Right: ");
+     Serial.println(zeroRightHall);
+
+     
 }
 
 
