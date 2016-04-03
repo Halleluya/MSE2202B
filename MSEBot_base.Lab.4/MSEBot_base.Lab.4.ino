@@ -347,8 +347,8 @@ void loop()
           
               case 2:
               {
-<<<<<<< HEAD
-                 //servo_GripServo.attach(pin_Grip_Servo);
+
+                 servo_GripServo.attach(pin_Grip_Servo);
                  //servo_WristServo.attach(pin_Wrist_Servo);
                  //servo_ArmServoLeft.attach(pin_Arm_Servo_Left);
                  //servo_ArmServoRight.attach(pin_Arm_Servo_Right);
@@ -360,80 +360,92 @@ void loop()
                   //check to see if there is a tesseract inside the claw
                   if(left_clawHallValue<500 || left_clawHallValue>507 || right_clawHallValue<510 || right_clawHallValue>520)
                   {
-                   //turn right 90
-                   rotateRight();
+                    //open claw to retreive teseract
+                    servo_GripServo.write(const_Grip_Servo_Open);
+                    delay(500);
 
-                   //attach servo and detatch servo when needed to ensure power distribution 
-                   servo_WristServo.attach(pin_Wrist_Servo);
-                   delay(500);       
-                   servo_WristServo.write(const_Wrist_Servo_Semi_Down);
-                   delay(500);//need this delay to give servo a chance to rotate
-                   servo_WristServo.detach();
+                    //inch forward to pick up teseracr from platform
+                    while(encoder_RightMotor.getRawPosition()<30)
+                      {
+                          servo_LeftMotor.write(1650);
+                          servo_RightMotor.write(1600);
+                          Serial.print("Right Encoder: ");
+                          Serial.println(encoder_RightMotor.getRawPosition());
+                      }
 
-                   //zero encoder for straight
-                   encoder_RightMotor.zero();
+                    //stop motors
+                    servo_LeftMotor.write(1500);
+                    servo_RightMotor.write(1500);
+                      
+                    encoder_RightMotor.zero();
+                    delay(1000);
 
-                   while(encoder_RightMotor.getRawPosition()<1000)//might need to change while statment for encoder position (robot dependet)
-=======
-                 servo_GripServo.attach(pin_Grip_Servo);
-                 servo_WristServo.attach(pin_Wrist_Servo);
-                 servo_ArmServoLeft.attach(pin_Arm_Servo_Left);
-                 servo_ArmServoRight.attach(pin_Arm_Servo_Right);
+                    //pick up teseract
+                    servo_GripServo.write(const_Grip_Servo_Closed);
+                    delay(1000);
+                    
+                    //turn right 90
+                    rotateRight();
 
-                 rotateArm();
-                 
-                 /*scanForTes();
-                 if (tes == true)
-                 {  
-                  if(left_clawHallValue<510 || left_clawHallValue>520 || right_clawHallValue<510 || right_clawHallValue>520)
-                  {
-                   rotateRight();
+                    //attach servo and detatch servo when needed to ensure power distribution 
+                    servo_WristServo.attach(pin_Wrist_Servo);
+                    delay(500);       
+                    servo_WristServo.write(const_Wrist_Servo_Semi_Down);
+                    delay(500);//need this delay to give servo a chance to rotate
+                    servo_WristServo.detach();
 
-                   servo_WristServo.write(const_Wrist_Servo_Semi_Down);
+                    //zero encoder for straight
+                    encoder_RightMotor.zero();
 
-                   encoder_RightMotor.zero();
-
-                   while(encoder_RightMotor.getRawPosition()<1000)
->>>>>>> origin/Jon's-Branch
-                   {
+                    //drive straight certain distance
+                    while(encoder_RightMotor.getRawPosition()<1000)//might need to change while statment for encoder position (robot dependet)
+                    {
                         leftMotorSpeed = 1870;
                         rightMotorSpeed = 1700;
                         stabalizeMotorSpeeds();
                         servo_LeftMotor.write(leftMotorSpeed); 
                         servo_RightMotor.write(rightMotorSpeed);
-                   } 
+                    }
 
-                   servo_LeftMotor.write(1500);
-                   servo_RightMotor.write(1500);
-
-                   delay(1000);
-
-<<<<<<< HEAD
-                   servo_LeftMotor.detach();
-                   servo_RightMotor.detach();
-                   servo_WristServo.detach();
-                   delay(500);
                    
-                   rotateArm();
+                    servo_LeftMotor.write(1500);
+                    servo_RightMotor.write(1500);
 
-                   //servo_LeftMotor.attach(pin_Left_Motor);
-                   //servo_RightMotor.attach(pin_Right_Motor);
+                    delay(1000);
 
-                   //servo_GripServo.write(const_Grip_Servo_Open);
+                    //detach motos and wrist servo to give arm motor enough current to raise arm
+                    servo_LeftMotor.detach();
+                    servo_RightMotor.detach();
+                    servo_WristServo.detach();
+                    delay(500);
 
-                   delay(1000);
+                    //rotate arm and drops off teseract in function
+                    rotateArm();
+                   
+                    //retach motors 
+                    servo_LeftMotor.attach(pin_Left_Motor);
+                    servo_RightMotor.attach(pin_Right_Motor);
+
+                    delay(1000);
+
+                    //drive in reverse to orginal position
+                    while(encoder_RightMotor.getRawPosition()>0)
+                    {
+                        leftMotorSpeed = 1130;
+                        rightMotorSpeed = 1400;
+                        stabalizeMotorSpeeds();
+                        servo_LeftMotor.write(leftMotorSpeed); 
+                        servo_RightMotor.write(rightMotorSpeed);
+                    }
+
+                   //rotate left to face drop off/pick up platform and 
+                   rotateLeft();
+
+                   //reset variables to pick up next teseract
+                   resetVariables();
+                   
                   }
                  }
-=======
-                   rotateArm();
-
-                   servo_GripServo.write(const_Grip_Servo_Open);
-
-                   delay(1000);
-                  }
-                 }*/
->>>>>>> origin/Jon's-Branch
-                 
                  
                 
                 break;
@@ -1118,12 +1130,14 @@ void resetVariables()
       middle_hallValue=515;
       left_hallValue=508;
       right_hallValue=515;
+      left_clawHallValue=505;
+      right_clawHallValue=515;      
       tes=true;
 }
 
 void rotateArm()
 {
-<<<<<<< HEAD
+
       servo_ArmServoLeft.attach(pin_Arm_Servo_Left);
       servo_ArmServoRight.attach(pin_Arm_Servo_Right);
 
@@ -1138,6 +1152,10 @@ void rotateArm()
 
       servo_ArmServoLeft.write(90);
       servo_ArmServoRight.write(90);
+      delay(1000);
+
+      //drop off teseract
+      servo_GripServo.write(const_Grip_Servo_Open);
       
       Serial.println("rotated arm");
       delay(3000);
@@ -1151,20 +1169,8 @@ void rotateArm()
       
       servo_ArmServoLeft.detach();
       servo_ArmServoRight.detach();
-=======
-      servo_ArmServoLeft.write(0);
-      servo_ArmServoRight.write(180);
       
       delay(700);
-
-      servo_ArmServoLeft.write(90);
-      servo_ArmServoLeft.write(90);
-
-      delay(700);
-
-      servo_ArmServoLeft.write(0);
-      servo_ArmServoRight.write(180);
->>>>>>> origin/Jon's-Branch
 }
 
 void rotateRight()
@@ -1191,8 +1197,25 @@ void rotateRight()
         delay(700);
 }
 
+void rotateLeft()
+{
+   encoder_RightMotor.zero();
+        rightEncoder = 0;
 
-<<<<<<< HEAD
 
-=======
->>>>>>> origin/Jon's-Branch
+        //turn left parallel to wall
+        while(rightEncoder < 12000)
+        {
+            servo_LeftMotor.write(1350);
+            servo_RightMotor.write(1650);
+
+            Serial.print("Encoder R: ");
+            Serial.println(rightEncoder);
+ 
+            rightEncoder = rightEncoder + encoder_RightMotor.getRawPosition();
+                  
+        }
+    delay(700);
+}
+
+
